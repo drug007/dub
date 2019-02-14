@@ -1172,6 +1172,7 @@ class GenerateCommand : PackageBuildCommand {
 		gensettings.parallelBuild = m_parallel;
 		gensettings.single = m_single;
 		gensettings.hash = m_hash;
+		gensettings.buildCacheDirectory = dub.buildCacheDirectory;
 
 		logDiagnostic("Generating using %s", m_generator);
 		dub.generateProject(m_generator, gensettings);
@@ -1397,6 +1398,7 @@ class TestCommand : PackageBuildCommand {
 		settings.tempBuild = m_single;
 		settings.run = true;
 		settings.runArgs = app_args;
+		settings.buildCacheDirectory = dub.buildCacheDirectory;
 
 		dub.testProject(settings, m_buildConfig, NativePath(m_mainFile));
 		return 0;
@@ -2327,6 +2329,7 @@ class DustmiteCommand : PackageBuildCommand {
 			gensettings.compileCallback = check(m_compilerStatusCode, m_compilerRegex);
 			gensettings.linkCallback = check(m_linkerStatusCode, m_linkerRegex);
 			gensettings.runCallback = check(m_programStatusCode, m_programRegex);
+			gensettings.buildCacheDirectory = dub.buildCacheDirectory;
 			try dub.generateProject("build", gensettings);
 			catch (DustmiteMismatchException) {
 				logInfo("Dustmite test doesn't match.");

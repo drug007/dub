@@ -332,6 +332,14 @@ class Dub {
 	*/
 	@property string defaultArchitecture() const { return m_defaultArchitecture; }
 
+	/** An optional directory that is used for storing cached build artefacts.
+
+		This is used by `BuildGenerator` to store intermediate object files
+		for reuse in incremental builds. The value of this proprerty may be
+		an empty path, in which case no directory is configured.
+	*/
+	@property NativePath buildCacheDirectory() const { return m_config.buildCacheDirectory; }
+
 	/** Loads the package that resides within the configured `rootPath`.
 	*/
 	void loadPackage()
@@ -1327,6 +1335,7 @@ class Dub {
 		settings.compiler = getCompiler(compiler_binary); // TODO: not using --compiler ???
 		settings.platform = settings.compiler.determinePlatform(settings.buildSettings, compiler_binary, m_defaultArchitecture);
 		settings.buildType = "debug";
+		settings.buildCacheDirectory = m_config.buildCacheDirectory;
 		settings.run = true;
 
 		auto filterargs = m_project.rootPackage.recipe.ddoxFilterArgs.dup;
@@ -1794,6 +1803,13 @@ private class DubConfig {
 			return m_parentConfig.skipRegistry;
 
 		return SkipPackageSuppliers.none;
+	}
+
+	@property NativePath buildCacheDirectory()
+	const {
+		if (auto pv = "buildCacheDirectory" in m_data)
+			return NativePath(pv.get!string);
+		return NativePath.init;
 	}
 
 	@property NativePath[] customCachePaths()
