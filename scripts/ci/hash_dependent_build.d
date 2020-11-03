@@ -33,7 +33,9 @@ int main()
     }
 
     auto buildUsingHash = (bool flag){
-        auto dub = executeShell("..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
+        import std.exception : enforce;
+
+        auto dub = executeShell("..\\bin\\dub build --hash=%s".format(flag ? "sha1" : "none"));
 
         writeln("dub output:");
         import std : lineSplitter;
@@ -41,12 +43,7 @@ int main()
             writeln("\t", line);
         writeln("end of dub output\n---\n");
 
-        if (dub.status != 0)
-        {
-            stderr.writeln("couldn't build the project first time:");
-            return true;
-        }
-        return false;
+        enforce(dub.status == 0, "couldn't build the project, see above");
     };
 
     // build the project first time

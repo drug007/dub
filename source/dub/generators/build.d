@@ -196,8 +196,19 @@ class BuildGenerator : ProjectGenerator {
 		else target_path = pack.path ~ format(".dub/build/%s/", build_id);
 
 		auto allfiles = listAllFiles(buildsettings, settings, pack, packages, additional_dep_files);
-		auto buildCache = scoped!TimeDependentCache(target_path, buildsettings, settings, allfiles);
-		auto hash_guard = HashGuard(target_path.toNativeString, settings.hash, allfiles);
+		BuildCache buildCache;
+		final switch(settings.hash) {
+			case HashKind.none:
+				logWarn("Using time-dependent build");
+				buildCache = new TimeDependentCache(target_path, buildsettings, settings, allfiles);
+			break;
+			case HashKind.sha1:
+				logWarn("Using hash-dependent build");
+				buildCache = new Sha1DependentCache(target_path, allfiles);
+			break;
+			case HashKind.sha256:
+			break;
+		}
 
 		if (!settings.force && buildCache.isUpToDate) {
 			logInfo("%s %s: target for configuration \"%s\" is up to date.", pack.name, pack.version_, config);
@@ -230,7 +241,7 @@ class BuildGenerator : ProjectGenerator {
 
 		if (!settings.tempBuild) {
 			copyTargetFile(target_path, buildsettings, settings);
-			hash_guard.saveFileHash;
+			buildCache.rebuildCache;
 		}
 
 		return false;
@@ -614,12 +625,10 @@ private bool fromHexString(string hexBuffer, ubyte[] byteBuffer) {
 }
 
 interface BuildCache {
-	/// recalculate cache id on given files
+	/// recalculate cache id, should be called on every successful build
 	void rebuildCache();
-	/// returns true if all file are up to date
+	/// returns true if all files are up to date
 	bool isUpToDate();
-	/// save current state of the cache (should be called after successful rebuilding)
-	void saveCache();
 }
 
 class TimeDependentCache : BuildCache {
@@ -670,10 +679,143 @@ class TimeDependentCache : BuildCache {
 
 		return true;
 	}
+}
+
+class Sha1DependentCache : BuildCache {
+	private {
+		import std.digest : Digest;
+		import std.digest.sha : SHA1Digest;
+		import std.path : buildPath;
+		import std.stdio : File;
+
+		NativePath _targetfile;
+		const(string[]) _allfiles;
+		ubyte[20] _buffer;
+		ubyte[__traits(classInstanceSize, SHA1Digest)] _holder;
+		Digest _digest;
+		ubyte[][string] _hashes;
+		string _hashFilename;
+	}
+
+	/// create an instance of the build cache
+	/// target_path
+	/// buildsettings
+	/// settings
+	/// allfiles is the list of files in native form
+	this(NativePath target_path, in string[] allfiles)
+	{
+		_allfiles = allfiles;
+		_digest = emplace!SHA1Digest(_holder);
+		_hashFilename = buildPath(target_path.toNativeString, "filehash.sha1");
+	}
+
+	~this() {
+		destroy(_digest);
+	}
+
+	private auto buffer() {
+		return _buffer;
+	}
+
+	private bool loadHashFile(string filename, out ubyte[][string] hashes) nothrow {
+		try {
+			if (existsFile(filename))
+			{
+				import std.string : strip;
+				foreach(file; slurp!(string, "str_hash", string, "name")(filename, "%s %s"))
+				{
+					if (!fromHexString(file.str_hash, buffer))
+					{
+						logError("Failed to get hash of source files, triggering rebuild");
+						return false;
+					}
+					hashes[file.name.strip] = buffer.dup;
+				}
+				return true;
+			}
+		}
+		catch(Exception e) {
+			// any exception means that the cache is invalid
+			logError("Loading hash file failed, triggering rebuild");
+		}
+
+		return false;
+	}
+
+	private void calculateHash(string filename) {
+		try
+		{
+			import std.algorithm : each;
+			import std.exception : ErrnoException;
+
+			enum ChunkSize = 4096;
+
+			File(filename, "r").byChunk(ChunkSize).each!(a=>_digest.put(a));
+			_digest.finish(buffer);
+		}
+		catch (ErrnoException ex)
+		{
+			import core.stdc.errno : EPERM, EACCES, ENOENT;
+
+			switch(ex.errno)
+			{
+				case EPERM:
+				case EACCES:
+					logError("%s: permission denied", filename);
+					break;
+
+				case ENOENT:
+					logError("%s: file does not exist", filename);
+					break;
+
+				default:
+					logError("%s: reading failed", filename);
+					_buffer[] = 0;
+					break;
+			}
+		}
+	}
 
 	/// ditto
-	void saveCache() {
-		// nothing to do
+	bool isUpToDate() {
+		assert(buffer.length == _digest.length);
+		if (!loadHashFile(_hashFilename, _hashes))
+			return false;
+
+		foreach (file; _allfiles) {
+			if (!existsFile(file)) {
+				logDiagnostic("File %s doesn't exist, triggering rebuild.", file);
+				return false;
+			}
+
+			calculateHash(file);
+
+			if (file !in _hashes || _buffer[] != _hashes[file]) {
+				logWarn("File `%s`: hash was changed, triggering rebuild.", file);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// ditto
+	void rebuildCache() {
+		import std.digest : toHexString;
+
+		ubyte[][string] hashes;
+
+		foreach (file; _allfiles) {
+			if (!existsFile(file)) {
+				logError("File %s doesn't exist.", file);
+				continue;
+			}
+			calculateHash(file);
+			hashes[file] = buffer.dup;
+		}
+
+		auto file = File(_hashFilename, "w");
+		foreach(pair; hashes.byKeyValue)
+			file.writefln("%s %s", pair.value.toHexString!(LetterCase.lower), pair.key);
 	}
 }
 
