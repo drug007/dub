@@ -625,7 +625,7 @@ private bool fromHexString(string hexBuffer, ubyte[] byteBuffer) {
 }
 
 interface BuildCache {
-	/// recalculate cache id, should be called on every successful build
+	/// recalculate cache id, should be called on every successful (re)build
 	void rebuildCache();
 	/// returns true if all files are up to date
 	bool isUpToDate();
@@ -688,7 +688,6 @@ class Sha1DependentCache : BuildCache {
 		import std.path : buildPath;
 		import std.stdio : File;
 
-		NativePath _targetfile;
 		const(string[]) _allfiles;
 		ubyte[20] _buffer;
 		ubyte[__traits(classInstanceSize, SHA1Digest)] _holder;
@@ -713,11 +712,11 @@ class Sha1DependentCache : BuildCache {
 		destroy(_digest);
 	}
 
-	private auto buffer() {
+	protected ubyte[] buffer() {
 		return _buffer;
 	}
 
-	private bool loadHashFile(string filename, out ubyte[][string] hashes) nothrow {
+	protected bool loadHashFile(string filename, out ubyte[][string] hashes) nothrow {
 		try {
 			if (existsFile(filename))
 			{
@@ -742,7 +741,7 @@ class Sha1DependentCache : BuildCache {
 		return false;
 	}
 
-	private void calculateHash(string filename) {
+	protected void calculateHash(string filename) {
 		try
 		{
 			import std.algorithm : each;
@@ -770,7 +769,7 @@ class Sha1DependentCache : BuildCache {
 
 				default:
 					logError("%s: reading failed", filename);
-					_buffer[] = 0;
+					buffer[] = 0;
 					break;
 			}
 		}
@@ -790,7 +789,7 @@ class Sha1DependentCache : BuildCache {
 
 			calculateHash(file);
 
-			if (file !in _hashes || _buffer[] != _hashes[file]) {
+			if (file !in _hashes || buffer != _hashes[file]) {
 				logWarn("File `%s`: hash was changed, triggering rebuild.", file);
 				return false;
 			}
