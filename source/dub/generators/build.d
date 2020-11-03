@@ -184,6 +184,8 @@ class BuildGenerator : ProjectGenerator {
 	private bool performCachedBuild(GeneratorSettings settings, BuildSettings buildsettings, in Package pack, string config,
 		string build_id, in Package[] packages, in NativePath[] additional_dep_files, out NativePath target_binary_path)
 	{
+		import std.typecons : scoped;
+
 		auto cwd = NativePath(getcwd());
 
 		NativePath target_path;
@@ -194,9 +196,10 @@ class BuildGenerator : ProjectGenerator {
 		else target_path = pack.path ~ format(".dub/build/%s/", build_id);
 
 		auto allfiles = listAllFiles(buildsettings, settings, pack, packages, additional_dep_files);
+		auto buildCache = scoped!TimeDependentCache(target_path, buildsettings, settings, allfiles);
 		auto hash_guard = HashGuard(target_path.toNativeString, settings.hash, allfiles);
 
-		if (!settings.force && isUpToDate(hash_guard, target_path, buildsettings, settings, allfiles)) {
+		if (!settings.force && buildCache.isUpToDate) {
 			logInfo("%s %s: target for configuration \"%s\" is up to date.", pack.name, pack.version_, config);
 			logDiagnostic("Using existing build in %s.", target_path.toNativeString());
 			target_binary_path = target_path ~ settings.compiler.getTargetFileName(buildsettings, settings.platform);
@@ -398,44 +401,6 @@ class BuildGenerator : ProjectGenerator {
 			allfiles ~= (main_pack.path ~ SelectedVersions.defaultFile).toNativeString();
 
 		return allfiles.data;
-	}
-
-	private bool isUpToDate(ref HashGuard hash_guard, NativePath target_path, BuildSettings buildsettings, GeneratorSettings settings, in string[] allfiles)
-	{
-		import std.datetime;
-
-		auto targetfile = target_path ~ settings.compiler.getTargetFileName(buildsettings, settings.platform);
-		if (!existsFile(targetfile)) {
-			logDiagnostic("Target '%s' doesn't exist, need rebuild.", targetfile.toNativeString());
-			return false;
-		}
-		auto targettime = getFileInfo(targetfile).timeModified;
-
-		if (settings.hash != HashKind.none)
-		{
-			logWarn("Using hash-dependent build");
-
-			return hash_guard.checkFiles;
-		}
-		else
-		{
-			logWarn("Using timestamp-dependent build");
-
-			foreach (file; allfiles) {
-				if (!existsFile(file)) {
-					logDiagnostic("File %s doesn't exist, triggering rebuild.", file);
-					return false;
-				}
-				auto ftime = getFileInfo(file).timeModified;
-				if (ftime > Clock.currTime)
-					logWarn("File '%s' was modified in the future. Please re-save.", file);
-				if (ftime > targettime) {
-					logDiagnostic("File '%s' modified, need rebuild.", file);
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 
 	/// Output an unique name to represent the source file.
@@ -646,6 +611,70 @@ private bool fromHexString(string hexBuffer, ubyte[] byteBuffer) {
 	assert(i == byteBuffer.length);
 
 	return true;
+}
+
+interface BuildCache {
+	/// recalculate cache id on given files
+	void rebuildCache();
+	/// returns true if all file are up to date
+	bool isUpToDate();
+	/// save current state of the cache (should be called after successful rebuilding)
+	void saveCache();
+}
+
+class TimeDependentCache : BuildCache {
+	private {
+		NativePath _targetfile;
+		const(string[]) _allfiles;
+	}
+
+	/// create an instance of the build cache
+	/// target_path
+	/// buildsettings
+	/// settings
+	/// allfiles is the list of files in native form
+	this(NativePath target_path, BuildSettings buildsettings, GeneratorSettings settings, in string[] allfiles)
+	{
+		_targetfile = target_path ~ settings.compiler.getTargetFileName(buildsettings, settings.platform);
+		_allfiles = allfiles;
+	}
+
+	/// ditto
+	void rebuildCache() {
+		// nothing to do
+	}
+
+	/// ditto
+	bool isUpToDate() {
+		import std.datetime : Clock;
+
+		if (!existsFile(_targetfile)) {
+			logDiagnostic("Target '%s' doesn't exist, need rebuild.", _targetfile.toNativeString());
+			return false;
+		}
+
+		const targettime = getFileInfo(_targetfile).timeModified;
+		foreach (file; _allfiles) {
+			if (!existsFile(file)) {
+				logDiagnostic("File %s doesn't exist, triggering rebuild.", file);
+				return false;
+			}
+			const ftime = getFileInfo(file).timeModified;
+			if (ftime > Clock.currTime)
+				logWarn("File '%s' was modified in the future. Please re-save.", file);
+			if (ftime > targettime) {
+				logDiagnostic("File '%s' modified, need rebuild.", file);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/// ditto
+	void saveCache() {
+		// nothing to do
+	}
 }
 
 private struct HashGuard
