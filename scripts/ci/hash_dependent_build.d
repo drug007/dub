@@ -35,8 +35,7 @@ int main()
     auto buildUsingHash = (bool flag){
         import std.exception : enforce;
 
-        auto dub = executeShell("..\\bin\\dub build --hash=%s".format(flag ? "sha1" : "none"));
-
+        auto dub = executeShell("..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
         writeln("dub output:");
         import std : lineSplitter;
         foreach(line; dub.output.lineSplitter)

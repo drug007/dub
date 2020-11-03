@@ -203,10 +203,12 @@ class BuildGenerator : ProjectGenerator {
 				buildCache = new TimeDependentCache(target_path, buildsettings, settings, allfiles);
 			break;
 			case HashKind.sha1:
-				logWarn("Using hash-dependent build");
+				logWarn("Using hash-dependent build (sha1)");
 				buildCache = new Sha1DependentCache(target_path, allfiles);
 			break;
 			case HashKind.sha256:
+				logWarn("Using hash-dependent build (sha256)");
+				buildCache = new Sha256DependentCache(target_path, allfiles);
 			break;
 		}
 
@@ -681,7 +683,7 @@ class TimeDependentCache : BuildCache {
 	}
 }
 
-class Sha1DependentCache : BuildCache {
+class DigestDependentCache : BuildCache {
 	private {
 		import std.digest : Digest;
 		import std.digest.sha : SHA1Digest;
@@ -689,32 +691,21 @@ class Sha1DependentCache : BuildCache {
 		import std.stdio : File;
 
 		const(string[]) _allfiles;
-		ubyte[20] _buffer;
-		ubyte[__traits(classInstanceSize, SHA1Digest)] _holder;
 		Digest _digest;
 		ubyte[][string] _hashes;
 		string _hashFilename;
 	}
 
-	/// create an instance of the build cache
-	/// target_path
-	/// buildsettings
-	/// settings
 	/// allfiles is the list of files in native form
-	this(NativePath target_path, in string[] allfiles)
-	{
+	/// digest is the digest used to get hashes of source files
+	/// hashfilename is the name of the file where hashes of source files are stored
+	this(const(string[]) allfiles, Digest digest, string hashfilename) {
 		_allfiles = allfiles;
-		_digest = emplace!SHA1Digest(_holder);
-		_hashFilename = buildPath(target_path.toNativeString, "filehash.sha1");
+		_digest = digest;
+		_hashFilename = hashfilename;
 	}
 
-	~this() {
-		destroy(_digest);
-	}
-
-	protected ubyte[] buffer() {
-		return _buffer;
-	}
+	protected abstract ubyte[] buffer();
 
 	protected bool loadHashFile(string filename, out ubyte[][string] hashes) nothrow {
 		try {
@@ -815,6 +806,62 @@ class Sha1DependentCache : BuildCache {
 		auto file = File(_hashFilename, "w");
 		foreach(pair; hashes.byKeyValue)
 			file.writefln("%s %s", pair.value.toHexString!(LetterCase.lower), pair.key);
+	}
+}
+
+class Sha1DependentCache : DigestDependentCache {
+	private {
+		import std.digest.sha : SHA1Digest;
+		import std.path : buildPath;
+
+		ubyte[20] _buffer;
+		ubyte[__traits(classInstanceSize, SHA1Digest)] _holder;
+	}
+
+	/// ditto
+	this(NativePath target_path, in string[] allfiles)
+	{
+		super(
+			allfiles,
+			emplace!SHA1Digest(_holder),
+			buildPath(target_path.toNativeString, "filehash.sha1")
+		);
+	}
+
+	~this() {
+		destroy(_digest);
+	}
+
+	protected override ubyte[] buffer() {
+		return _buffer[];
+	}
+}
+
+class Sha256DependentCache : DigestDependentCache {
+	private {
+		import std.digest.sha : SHA256Digest;
+		import std.path : buildPath;
+
+		ubyte[32] _buffer;
+		ubyte[__traits(classInstanceSize, SHA256Digest)] _holder;
+	}
+
+	/// ditto
+	this(NativePath target_path, in string[] allfiles)
+	{
+		super(
+			allfiles,
+			emplace!SHA256Digest(_holder),
+			buildPath(target_path.toNativeString, "filehash.sha256")
+		);
+	}
+
+	~this() {
+		destroy(_digest);
+	}
+
+	protected override ubyte[] buffer() {
+		return _buffer[];
 	}
 }
 
