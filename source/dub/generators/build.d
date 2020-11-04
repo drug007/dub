@@ -686,13 +686,10 @@ class TimeDependentCache : BuildCache {
 class DigestDependentCache : BuildCache {
 	private {
 		import std.digest : Digest;
-		import std.digest.sha : SHA1Digest;
-		import std.path : buildPath;
 		import std.stdio : File;
 
 		const(string[]) _allfiles;
 		Digest _digest;
-		ubyte[][string] _hashes;
 		string _hashFilename;
 	}
 
@@ -705,7 +702,7 @@ class DigestDependentCache : BuildCache {
 		_hashFilename = hashfilename;
 	}
 
-	protected abstract ubyte[] buffer();
+	protected abstract ubyte[] buffer() nothrow;
 
 	protected bool loadHashFile(string filename, out ubyte[][string] hashes) nothrow {
 		try {
@@ -769,7 +766,8 @@ class DigestDependentCache : BuildCache {
 	/// ditto
 	bool isUpToDate() {
 		assert(buffer.length == _digest.length);
-		if (!loadHashFile(_hashFilename, _hashes))
+		ubyte[][string] hashes;
+		if (!loadHashFile(_hashFilename, hashes))
 			return false;
 
 		foreach (file; _allfiles) {
@@ -780,7 +778,7 @@ class DigestDependentCache : BuildCache {
 
 			calculateHash(file);
 
-			if (file !in _hashes || buffer != _hashes[file]) {
+			if (file !in hashes || buffer != hashes[file]) {
 				logWarn("File `%s`: hash was changed, triggering rebuild.", file);
 				return false;
 			}
@@ -832,7 +830,7 @@ class Sha1DependentCache : DigestDependentCache {
 		destroy(_digest);
 	}
 
-	protected override ubyte[] buffer() {
+	protected override ubyte[] buffer() nothrow {
 		return _buffer[];
 	}
 }
@@ -860,159 +858,8 @@ class Sha256DependentCache : DigestDependentCache {
 		destroy(_digest);
 	}
 
-	protected override ubyte[] buffer() {
+	protected override ubyte[] buffer() nothrow {
 		return _buffer[];
-	}
-}
-
-private struct HashGuard
-{
-	import std.stdio : File;
-	import std.digest : toHexString;
-
-	string target_path;
-	string[] filenames;
-	HashKind kind;
-	ubyte[32] buffer;
-
-	this(string target_path, HashKind kind, string[] allfiles)
-	{
-		this.target_path = target_path;
-		this.kind = kind;
-		this.filenames = allfiles;
-	}
-
-	@disable this();
-
-	void calculateHash(string filename, ubyte[] sha) {
-		try
-		{
-			import std.digest.sha : SHA1Digest, SHA256Digest;
-			import std.digest : Digest;
-			import std.exception : ErrnoException;
-			import std.algorithm : each;
-			import std.conv : emplace;
-
-			enum ChunkSize = 4096;
-			enum BufSize = max(
-				__traits(classInstanceSize, SHA1Digest),
-				__traits(classInstanceSize, SHA256Digest),
-			);
-			ubyte[BufSize] buffer = void;
-
-			Digest hash;
-
-			final switch(kind) {
-				case HashKind.none:
-					assert(0);
-				case HashKind.sha1:
-					hash = emplace!SHA1Digest(buffer);
-				break;
-				case HashKind.sha256:
-					hash = emplace!SHA256Digest(buffer);
-				break;
-			}
-
-			File(filename, "r").byChunk(ChunkSize).each!(a=>hash.put(a));
-			enforce(sha.length == hash.length);
-			hash.finish(sha);
-			destroy(hash);
-		}
-		catch (ErrnoException ex)
-		{
-			import core.stdc.errno : EPERM, EACCES, ENOENT;
-
-			switch(ex.errno)
-			{
-				case EPERM:
-				case EACCES:
-					logError("%s: permission denied", filename);
-					break;
-
-				case ENOENT:
-					logError("%s: file does not exist", filename);
-					break;
-
-				default:
-					logError("%s: reading failed", filename);
-					break;
-
-			}
-		}
-	}
-
-	auto hashBuffer() {
-		final switch(kind) {
-			case HashKind.none:
-				assert(0);
-			case HashKind.sha1:
-				return buffer[0..20];
-			case HashKind.sha256:
-				return buffer[0..32];
-		}
-	}
-
-	auto hashFilename() const {
-		import std.path : buildPath;
-		final switch(kind) {
-			case HashKind.none:
-				assert(0);
-			case HashKind.sha1:
-				return buildPath(target_path, "filehash.sha1");
-			case HashKind.sha256:
-				return buildPath(target_path, "filehash.sha256");
-		}
-	}
-
-	auto checkFiles() {
-		ubyte[][string] hashes;
-		if (existsFile(hashFilename))
-		{
-			import std.string : strip;
-			foreach(file; slurp!(string, "str_hash", string, "name")(hashFilename, "%s %s"))
-			{
-				if (!fromHexString(file.str_hash, hashBuffer))
-				{
-					logError("Failed to get hash of source files, triggering rebuild");
-					// TODO rename the file to prevent cycling failure
-					return false;
-				}
-				hashes[file.name.strip] = hashBuffer.dup;
-			}
-		}
-
-		foreach (file; filenames) {
-			if (!existsFile(file)) {
-				logDiagnostic("File %s doesn't exist, triggering rebuild.", file);
-				return false;
-			}
-			calculateHash(file, hashBuffer);
-			if (file !in hashes || hashBuffer != hashes[file]) {
-				logWarn("File `%s`: hash was changed, triggering rebuild.", file);
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	auto saveFileHash() {
-		ubyte[][string] hashes;
-
-		foreach (file; filenames) {
-			if (!existsFile(file)) {
-				logError("File %s doesn't exist.", file);
-				continue;
-			}
-			calculateHash(file, hashBuffer);
-			hashes[file] = hashBuffer.dup;
-		}
-
-		auto file = File(hashFilename, "w");
-		foreach(pair; hashes.byKeyValue)
-			file.writefln("%s %s", pair.value.toHexString!(LetterCase.lower), pair.key);
-
-		return true;
 	}
 }
 
