@@ -11,10 +11,10 @@ int main()
     import std.process;
     import std.stdio : stderr, writeln;
 
-    enum TestProjectName = "test_project";
+    enum TestProjectName = "hash-dependent-build";
 
     // delete old artifacts if any
-    const projectDir = buildPath(getcwd, TestProjectName);
+    const projectDir = buildPath(getcwd, "test", TestProjectName);
     if (projectDir.exists)
         projectDir.rmdirRecurse;
     projectDir.mkdir;
@@ -23,7 +23,7 @@ int main()
 
     // create test_project
     {
-        auto dub = executeShell("..\\bin\\dub init --non-interactive");
+        auto dub = executeShell("..\\..\\bin\\dub init --non-interactive");
         if (dub.status != 0)
         {
             stderr.writeln("couldn't execute 'dub init test_project'");
@@ -35,7 +35,7 @@ int main()
     auto buildUsingHash = (bool flag){
         import std.exception : enforce;
 
-        auto dub = executeShell("..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
+        auto dub = executeShell("..\\..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
         writeln("dub output:");
         import std : lineSplitter;
         foreach(line; dub.output.lineSplitter)
