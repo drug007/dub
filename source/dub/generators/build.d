@@ -593,7 +593,8 @@ class BuildGenerator : ProjectGenerator {
 	}
 }
 
-/// return true if the conversion was successful
+/// converts hex string to ubyte array
+/// returns true if the conversion was successful
 private bool fromHexString(string hexBuffer, ubyte[] byteBuffer) {
 	enforce(byteBuffer.length == hexBuffer.length / 2, "fromHexString buffers size mismatch");
 	int i;
@@ -601,33 +602,34 @@ private bool fromHexString(string hexBuffer, ubyte[] byteBuffer) {
 	foreach (ch; hexBuffer)
 	{
 		int v = cast(int) ch;
-		// [0..9]
-		if (v >= 48 && v <= 57)
-			v -= 48;
-		// [A..F]
-		else if (v >= 65 && v <= 70)
-			v -= 55;
-		// [a..f]
-		else if (v>= 97 && v <= 102)
-			v -= 87;
+		if (v >= '0' && v <= '9')
+			v -= '0' - 0;
+		else if (v >= 'A' && v <= 'F')
+			v -= 'A' - 10;
+		else if (v>= 'a' && v <= 'f')
+			v -= 'a' - 10;
 		else
 			return false;
 
 		if (low)
-			byteBuffer[i++] |= v & 15;
+			byteBuffer[i++] |= v & 0xF;
 		else
-			byteBuffer[i] = (v & 15) << 4;
+			byteBuffer[i] = (v & 0xF) << 4;
 
 		low = !low;
 	}
-
 	assert(i == byteBuffer.length);
-
 	return true;
 }
 
+unittest {
+	ubyte[5] buffer;
+	"01090a0fff".fromHexString(buffer);
+	assert( buffer[] == [1, 9, 10, 15, 255]);
+}
+
 interface BuildCache {
-	/// recalculate cache id, should be called on every successful (re)build
+	/// recalculate cache id, should be called after successful (re)build
 	void rebuildCache();
 	/// returns true if all files are up to date
 	bool isUpToDate();
