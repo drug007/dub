@@ -31,6 +31,8 @@ else
     DUB=`pwd`/bin/dub DC=${DC} test/run-unittest.sh
 fi
 
+dub --single scripts/ci/hash_dependent_build.d
+
 ## Checks that only need to be done once per CI run
 ## Here the `COVERAGE` variable is abused for this purpose,
 ## as it's only defined once in the whole Travis matrix
