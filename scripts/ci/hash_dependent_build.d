@@ -2,7 +2,7 @@
    name "hash"
  +/
 
- import std.datetime : dur, SysTime;
+import std.datetime : dur, SysTime;
 import std.file;
 import std.format : format;
 import std.path;
@@ -10,7 +10,6 @@ import std.process;
 import std.stdio : stderr, writeln;
 
 enum TestProjectName = "hash-dependent-build";
-SysTime atime, mtime;
 immutable source_name = "source/app.d";
 version(Windows) immutable artifact_name = TestProjectName ~ ".exe";
 else             immutable artifact_name = TestProjectName;
@@ -26,32 +25,38 @@ auto buildUsingHash(bool flag) {
     writeln("end of dub output\n---\n");
 
     enforce(dub.status == 0, "couldn't build the project, see above");
+
+    return dub.output;
 }
 
 // compare time of the artifact to previous value (they should be equal)
-auto checkIfNoRebuild() {
-    SysTime atime2, mtime2;
-    getTimes(artifact_name, atime2, mtime2);
+auto checkIfNoRebuild(string output) {
+    import std.array : array;
+    import std.string : lineSplitter;
+    auto lines = output.lineSplitter.array;
 
-    if (atime == atime2 && mtime == mtime2)
+    if (lines[$-2] == "hash-dependent-build ~master: target for configuration \"application\" is up to date." &&
+        lines[$-1] == "To force a rebuild of up-to-date targets, run again with --force.") {
         writeln("Ok. No rebuild triggered");
+        return true;
+    }
     else
         writeln("Fail. Rebuild has been triggered");
-
-    assert(atime == atime2);
-    assert(mtime == mtime2);
+    return false;
 }
 
-auto checkIfRebuildTriggered() {
-    SysTime atime2, mtime2;
-    getTimes(artifact_name, atime2, mtime2);
-
-    if (atime == atime2 && mtime == mtime2)
+auto checkIfRebuildTriggered(string output) {
+    import std.array : array;
+    import std.string : lineSplitter;
+    auto lines = output.lineSplitter.array;
+    if (lines[$-2] == "hash-dependent-build ~master: building configuration \"application\"..." && 
+        lines[$-1] == "Linking...") {
         writeln("Fail. No rebuild triggered");
+        return false;
+    }
     else
         writeln("Ok. Rebuild has been triggered");
-
-    assert(atime != atime2 || mtime != mtime2);
+    return true;
 }
 
 int main()
@@ -79,18 +84,10 @@ int main()
     writeln("building #1 (using hash dependent cache)");
     buildUsingHash(true);
 
-    // get time of the artifacts
-    {
-        getTimes(artifact_name, atime, mtime);
-
-        writeln("Current time of the build artifact ", artifact_name, " is: ");
-        writeln("access time: ", atime);
-        writeln("modify time: ", mtime);
-        writeln;
-    }
-
     // touch some source file(s)
     {
+        SysTime atime, mtime;
+        getTimes(artifact_name, atime, mtime);
         setTimes(source_name, atime + dur!"seconds"(1), mtime + dur!"seconds"(1));
 
         writeln("Change time of `source\\app.d to:");
@@ -100,15 +97,18 @@ int main()
     }
 
     writeln("building #2 (using hash dependent cache)");
-    buildUsingHash(true);
-    checkIfNoRebuild;
+    auto output = buildUsingHash(true);
+    if (!checkIfNoRebuild(output))
+        return 1;
 
     writeln("building #3 (using time dependent cache)");
-    buildUsingHash(false);
-    checkIfRebuildTriggered;
+    output = buildUsingHash(false);
+    if (checkIfRebuildTriggered(output))
+        return 1;
 
     // edit some source file(s) preserving the file timestamp
     {
+        SysTime atime, mtime;
         getTimes(source_name, atime, mtime);
 
         auto src = readText(source_name);
@@ -117,11 +117,20 @@ int main()
         write(source_name, src);
 
         setTimes(source_name, atime, mtime);
-    }
 
-    // edit source/add.d
-    // dub build --hash=sha256
-    // compare time of the artifact to previous value (the last one should be younger)
+        SysTime a, m;
+        getTimes(source_name, a, m);
+        writeln(atime, "\t", mtime);
+        writeln(a, "\t", m);
+    }
+    
+    // writeln("building #4 (using time dependent cache)");
+    // buildUsingHash(false);
+    // checkIfNoRebuild;
+    
+    // writeln("building #5 (using hash dependent cache)");
+    // buildUsingHash(true);
+    // checkIfRebuildTriggered;
 
     // undo changes in source/app.d (i.e. restore its content)
     // dub build --hash=sha256
