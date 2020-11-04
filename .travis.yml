@@ -101,7 +101,7 @@ jobs:
             tags: true
 stages:
   - name: test
-    if: type = pull_request or (type = push and branch = hash_dependent_build)
+    if: type = pull_request or (type = push and branch = master)
   # Until deployment of the release binaries is fixed, always build them
   #- name: deploy
     #if: type = push and tag =~ ^v\d+\.\d+\.\d+[^-]*\$ # not a pre-release tag
