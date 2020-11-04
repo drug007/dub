@@ -2,17 +2,60 @@
    name "hash"
  +/
 
+ import std.datetime : dur, SysTime;
+import std.file;
+import std.format : format;
+import std.path;
+import std.process;
+import std.stdio : stderr, writeln;
+
+enum TestProjectName = "hash-dependent-build";
+SysTime atime, mtime;
+immutable source_name = "source/app.d";
+version(Windows) immutable artifact_name = TestProjectName ~ ".exe";
+else             immutable artifact_name = TestProjectName;
+
+auto buildUsingHash(bool flag) {
+    import std.exception : enforce;
+
+    auto dub = executeShell("..\\..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
+    writeln("dub output:");
+    import std : lineSplitter;
+    foreach(line; dub.output.lineSplitter)
+        writeln("\t", line);
+    writeln("end of dub output\n---\n");
+
+    enforce(dub.status == 0, "couldn't build the project, see above");
+}
+
+// compare time of the artifact to previous value (they should be equal)
+auto checkIfNoRebuild() {
+    SysTime atime2, mtime2;
+    getTimes(artifact_name, atime2, mtime2);
+
+    if (atime == atime2 && mtime == mtime2)
+        writeln("Ok. No rebuild triggered");
+    else
+        writeln("Fail. Rebuild has been triggered");
+
+    assert(atime == atime2);
+    assert(mtime == mtime2);
+}
+
+auto checkIfRebuildTriggered() {
+    SysTime atime2, mtime2;
+    getTimes(artifact_name, atime2, mtime2);
+
+    if (atime == atime2 && mtime == mtime2)
+        writeln("Fail. No rebuild triggered");
+    else
+        writeln("Ok. Rebuild has been triggered");
+
+    assert(atime != atime2 || mtime != mtime2);
+}
+
 int main()
 {
-    import std.datetime : dur, SysTime;
-    import std.file;
-    import std.format : format;
-    import std.path;
-    import std.process;
-    import std.stdio : stderr, writeln;
-
-    enum TestProjectName = "hash-dependent-build";
-
     // delete old artifacts if any
     const projectDir = buildPath(getcwd, "test", TestProjectName);
     if (projectDir.exists)
@@ -32,61 +75,48 @@ int main()
         }
     }
 
-    auto buildUsingHash = (bool flag){
-        import std.exception : enforce;
-
-        auto dub = executeShell("..\\..\\bin\\dub build --hash=%s".format(flag ? "sha256" : "none"));
-        writeln("dub output:");
-        import std : lineSplitter;
-        foreach(line; dub.output.lineSplitter)
-            writeln("\t", line);
-        writeln("end of dub output\n---\n");
-
-        enforce(dub.status == 0, "couldn't build the project, see above");
-    };
-
     // build the project first time
     writeln("building #1 (using hash dependent cache)");
     buildUsingHash(true);
 
     // get time of the artifacts
-    SysTime atime, mtime;
-    immutable source_name = "source/app.d";
-    version(Windows)
-        immutable artifact_name = TestProjectName ~ ".exe";
-    else
-        immutable artifact_name = TestProjectName;
+    {
+        getTimes(artifact_name, atime, mtime);
 
-    getTimes(artifact_name, atime, mtime);
+        writeln("Current time of the build artifact ", artifact_name, " is: ");
+        writeln("access time: ", atime);
+        writeln("modify time: ", mtime);
+        writeln;
+    }
 
-    writeln("Current time of the build artifact ", artifact_name, " is: ");
-    writeln("access time: ", atime);
-    writeln("modify time: ", mtime);
-    writeln;
+    // touch some source file(s)
+    {
+        setTimes(source_name, atime + dur!"seconds"(1), mtime + dur!"seconds"(1));
 
-    // touch source/app.d
-    setTimes("source/app.d", atime + dur!"seconds"(1), mtime + dur!"seconds"(1));
-
-    writeln("Change time of `source\\app.d to:");
-    writeln("access time: ", atime + dur!"seconds"(1));
-    writeln("modify time: ", mtime + dur!"seconds"(1));
-    writeln;
+        writeln("Change time of `source\\app.d to:");
+        writeln("access time: ", atime + dur!"seconds"(1));
+        writeln("modify time: ", mtime + dur!"seconds"(1));
+        writeln;
+    }
 
     writeln("building #2 (using hash dependent cache)");
     buildUsingHash(true);
+    checkIfNoRebuild;
 
-    // compare time of the artifact to previous value (they should be equal)
+    writeln("building #3 (using time dependent cache)");
+    buildUsingHash(false);
+    checkIfRebuildTriggered;
+
+    // edit some source file(s) preserving the file timestamp
     {
-        SysTime atime2, mtime2;
-        getTimes(artifact_name, atime2, mtime2);
+        getTimes(source_name, atime, mtime);
 
-        if (atime == atime2 && mtime == mtime2)
-            writeln("Ok. No rebuild triggered");
-        else
-            writeln("Fail. Rebuild has been triggered");
+        auto src = readText(source_name);
+        src ~= " ";
+        import std.file;
+        write(source_name, src);
 
-        assert(atime == atime2);
-        assert(mtime == mtime2);
+        setTimes(source_name, atime, mtime);
     }
 
     // edit source/add.d
