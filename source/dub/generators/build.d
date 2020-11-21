@@ -135,11 +135,7 @@ class BuildGenerator : ProjectGenerator {
 		// run the generated executable
 		auto buildsettings = targets[m_project.rootPackage.name].buildSettings.dup;
 		if (settings.run && !(buildsettings.options & BuildOption.syntaxOnly)) {
-			NativePath exe_file_path;
-			if (m_tempTargetExecutablePath.empty)
-				exe_file_path = getTargetPath(buildsettings, settings);
-			else
-				exe_file_path = m_tempTargetExecutablePath ~ settings.compiler.getTargetFileName(buildsettings, settings.platform);
+			NativePath exe_file_path = getTargetPath(buildsettings, settings);
 			runTarget(exe_file_path, buildsettings, settings.runArgs, settings);
 		}
 	}

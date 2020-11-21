@@ -74,7 +74,6 @@ class ProjectGenerator
 
 	protected {
 		Project m_project;
-		NativePath m_tempTargetExecutablePath;
 	}
 
 	this(Project project)
@@ -120,7 +119,7 @@ class ProjectGenerator
 			buildsettings.processVars(m_project, pack, pack.getBuildSettings(settings.platform, configs[pack.name]), settings, true);
 			bool generate_binary = !(buildsettings.options & BuildOption.syntaxOnly);
 			auto bs = &targets[m_project.rootPackage.name].buildSettings;
-			auto targetPath = (m_tempTargetExecutablePath.empty) ? NativePath(bs.targetPath) : m_tempTargetExecutablePath;
+			auto targetPath = NativePath(bs.targetPath);
 			finalizeGeneration(pack, m_project, settings, buildsettings, targetPath, generate_binary);
 		}
 
