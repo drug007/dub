@@ -41,3 +41,5 @@ cov/
 # Ignore auto-generated docs
 /docs
 scripts/man/dub*.1.gz
+*.exe
+*.log
