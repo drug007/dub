@@ -61,6 +61,53 @@ auto execute(DubCommand cmd, string dub, string pack, string dc)
 	return r;
 }
 
+auto shouldFail(string pack)
+{
+	return buildPath(pack, ".fail_build").exists;
+}
+
+string dc_bin;
+
+/// checks for existing specific files that prohibites
+/// building, running and testing specific package if they
+/// are placed in the root of the package
+/// compiler and platform can be specified additional
+///
+/// for example to prevent running some package by dmd in
+/// Windows just place a file in the root of the package having
+/// name `.no_build_win_dmd`
+///
+///             Posix    Win
+/// platform    none     win
+///
+///             dmd   ldc   gdc
+/// compiler    dmd   ldc2  gdc
+///
+/// available kinds are:
+///     build
+///     run
+///     test
+auto shouldBe(string kind)(string pack)
+{
+	import std.algorithm : among;
+	static assert(kind.among("build", "run", "test"));
+	version (Windows)
+	{
+		const general = ".no_" ~ kind ~ "_win";
+		const compilerSpecific = ".no_" ~ kind ~ "_win_" ~ dc_bin;
+	}
+	else
+	{
+		const general = ".no_" ~ kind;
+		const compilerSpecific = ".no_" ~ kind ~ "_" ~ dc_bin;
+	}
+	return (!buildPath(pack, general).exists && !buildPath(pack, compilerSpecific).exists);
+}
+
+alias shouldBeBuilt  = shouldBe!"build";
+alias shouldBeRun    = shouldBe!"run";
+alias shouldBeTested = shouldBe!"test";
+
 int main(string[] args)
 {
 	auto dub = environment.get("DUB", "");
@@ -82,10 +129,9 @@ int main(string[] args)
 		File(logFile, "w");
 	}
 
-	auto dc_bin = baseName(dc);
+	dc_bin = baseName(dc);
 	auto curr_dir = getcwd;
 	auto frontend = environment.get("FRONTEND", "");
-
 	auto filter = (args.length > 1) ? args[1] : "*";
 
 // # for script in $(ls $CURR_DIR/*.sh); do
@@ -121,14 +167,14 @@ int main(string[] args)
 
 		bool built;
 		// First we build the packages
-		if (!buildPath(pack, ".no_build").exists && !buildPath(pack, ".no_build_" ~ dc_bin).exists) // For sourceLibrary
+		if (pack.shouldBeBuilt) // For sourceLibrary
 		{
 			const olddir = getcwd;
 			if (de.isDir)
 				chdir(pack);
 			scope(exit) chdir(olddir);
 
-			if (buildPath(pack, ".fail_build").exists)
+			if (pack.shouldFail)
 			{
 				log("Building %s, expected failure...", pack);
 				const r = execute(DubCommand.build, dub, pack, dc);
@@ -149,7 +195,7 @@ int main(string[] args)
 		}
 
 		// We run the ones that are supposed to be run
-		if (built && !buildPath(pack, ".no_run").exists && !buildPath(pack, ".no_run_" ~ dc_bin).exists)
+		if (built && pack.shouldBeRun)
 		{
 			log("Running %s...", pack);
 			const r = execute(DubCommand.run, dub, pack, dc);
@@ -160,7 +206,7 @@ int main(string[] args)
 		}
 
 		// Finally, the unittest part
-		if (built && !buildPath(pack, ".no_test").exists && !buildPath(pack, ".no_test_" ~ dc_bin).exists)
+		if (built && pack.shouldBeTested)
 		{
 			log("Testing %s...", pack);
 			const r = execute(DubCommand.test, dub, pack, dc);
