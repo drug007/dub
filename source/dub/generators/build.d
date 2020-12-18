@@ -694,7 +694,8 @@ class DigestDependentCache : BuildCache {
 
 		const(string[]) _allfiles;
 		Digest _digest;
-		string _hashfile_path, _tmp_postfix;
+		ubyte[][string] _hashes;
+		string _hashfile_path;
 	}
 
 	/**
@@ -800,9 +801,6 @@ class DigestDependentCache : BuildCache {
 
 	protected void cacheSources()
 	{
-		import std.digest : toHexString;
-
-		ubyte[][string] hashes;
 
 		foreach (file; _allfiles) {
 			if (!existsFile(file)) {
@@ -810,24 +808,20 @@ class DigestDependentCache : BuildCache {
 				continue;
 			}
 			calculateHash(file);
-			hashes[file] = buffer.dup;
+			_hashes[file] = buffer.dup;
 		}
-
-		{
-			import std.range : iota;
-			import std.random : MinstdRand0, randomSample, unpredictableSeed;
-
-			auto rnd = MinstdRand0(unpredictableSeed);
-			_tmp_postfix = "." ~ 26.iota.randomSample(6, rnd).map!(a=>cast(immutable char)(a+'a')).array;
-		}
-		auto file = File(_hashfile_path ~ _tmp_postfix, "w");
-		foreach(pair; hashes.byKeyValue)
-			file.writefln("%s %s", pair.value.toHexString!(LetterCase.lower), pair.key);
 	}
 
 	protected void commitCache()
 	{
-		rename(_hashfile_path ~ _tmp_postfix, _hashfile_path);
+		{
+			import std.digest : toHexString;
+			auto file = File(_hashfile_path ~ "_tmp", "w");
+			foreach(pair; _hashes.byKeyValue)
+				file.writefln("%s %s", pair.value.toHexString!(LetterCase.lower), pair.key);
+		}
+
+		rename(_hashfile_path ~ "_tmp", _hashfile_path);
 	}
 }
 
