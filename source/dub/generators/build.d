@@ -620,13 +620,15 @@ interface BuildCache
 	void commitCache();
 	/// returns true if all files are up to date
 	bool isUpToDate();
+	/// return the path to the current file cache
+	NativePath targetPath();
 }
 
 class TimeDependentCache : BuildCache
 {
 	private
 	{
-		NativePath _targetfile;
+		NativePath _targetfile, _targetpath;
 		const(string[]) _allfiles;
 	}
 
@@ -637,6 +639,7 @@ class TimeDependentCache : BuildCache
 	/// allfiles is the list of files in native form
 	this(NativePath target_path, BuildSettings buildsettings, GeneratorSettings settings, in string[] allfiles)
 	{
+		_targetpath = target_path;
 		_targetfile = target_path ~ settings.compiler.getTargetFileName(buildsettings, settings.platform);
 		_allfiles = allfiles;
 	}
@@ -684,6 +687,12 @@ class TimeDependentCache : BuildCache
 
 		return true;
 	}
+
+	// ditto
+	NativePath targetPath()
+	{
+		return _targetpath;
+	}
 }
 
 class DigestDependentCache : BuildCache {
@@ -703,7 +712,7 @@ class DigestDependentCache : BuildCache {
 		Record[] _files;
 		Digest _digest;
 		ubyte[][string] _hashes;
-		NativePath _hashfile_path;
+		NativePath _hashfile_path, _target_path;
 	}
 
 	/**
@@ -712,15 +721,17 @@ class DigestDependentCache : BuildCache {
 	 * Params:
 	 *     allfiles      = the list of files in native form
 	 *     digest        = the digest used to get hashes of source files
-	 *     hashfile_path = the path to the file where hashes of source files are stored
+	 *     target path   = the path to the file cache directory
+	 *     hashfilename  = the name of the file where hashes of source files are stored
 	 */
-	this(const(string[]) allfiles, Digest digest, NativePath hashfile_path) {
+	this(const(string[]) allfiles, Digest digest, NativePath target_path, string hashfilename) {
 		import std.array : array;
 		import std.algorithm : map;
 
 		_files = allfiles.map!(a=>Record(a, null)).array;
 		_digest = digest;
-		_hashfile_path = hashfile_path;
+		_target_path = target_path;
+		_hashfile_path = target_path ~ hashfilename;
 	}
 
 	protected abstract ubyte[] buffer() nothrow;
@@ -836,12 +847,17 @@ class DigestDependentCache : BuildCache {
 
 		rename(filename ~ "_tmp", filename);
 	}
+
+	/// ditto
+	NativePath targetPath()
+	{
+		return _target_path;
+	}
 }
 
 class Sha1DependentCache : DigestDependentCache {
 	private {
 		import std.digest.sha : SHA1Digest;
-		import std.path : buildPath;
 
 		ubyte[20] _buffer;
 		ubyte[__traits(classInstanceSize, SHA1Digest)] _holder;
@@ -853,7 +869,8 @@ class Sha1DependentCache : DigestDependentCache {
 		super(
 			allfiles,
 			emplace!SHA1Digest(_holder),
-			target_path ~ "filehash.sha1"
+			target_path,
+			"filehash.sha1"
 		);
 	}
 
@@ -869,7 +886,6 @@ class Sha1DependentCache : DigestDependentCache {
 class Sha256DependentCache : DigestDependentCache {
 	private {
 		import std.digest.sha : SHA256Digest;
-		import std.path : buildPath;
 
 		ubyte[32] _buffer;
 		ubyte[__traits(classInstanceSize, SHA256Digest)] _holder;
@@ -881,7 +897,8 @@ class Sha256DependentCache : DigestDependentCache {
 		super(
 			allfiles,
 			emplace!SHA256Digest(_holder),
-			target_path ~ "filehash.sha256"
+			target_path,
+			"filehash.sha256"
 		);
 	}
 
