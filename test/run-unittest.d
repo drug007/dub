@@ -43,6 +43,7 @@ void logError(Args...)(Args args)
 	stderr.writeln(str);
 	File(logFile, "a").writeln(str);
 	any_errors = true;
+	assert(!any_errors);
 }
 
 enum DubCommand { build = "build", run = "run", test = "test", }
@@ -111,6 +112,7 @@ alias shouldBeTested = shouldBe!"test";
 int main(string[] args)
 {
 	auto dub = environment.get("DUB", "");
+	writeln("DUB: ", dub);
 	if (dub == "")
 	{
 		logError("Environment variable `DUB` must be defined to run the tests.");
@@ -187,7 +189,11 @@ int main(string[] args)
 				const r = execute(DubCommand.build, dub, pack, dc);
 				if (r.status)
 				{
-					logError("Build failure.");
+					// // auto f = File(logFile, "a");
+					// stderr.writeln(r.output);
+					// stderr.writeln(getcwd);
+					// stderr.writeln(dub);
+					logError("Build failure: dub %s %s %s %s", DubCommand.build, dub, pack, dc);
 				}
 				else
 					built = true;
@@ -202,6 +208,10 @@ int main(string[] args)
 			if (r.status)
 			{
 				logError("Run failure.");
+				// // auto f = File(logFile, "a");
+				// stderr.writeln(r.output);
+				// stderr.writeln(getcwd);
+				// stderr.writeln(dub);
 			}
 		}
 
@@ -213,6 +223,10 @@ int main(string[] args)
 			if (r.status)
 			{
 				logError("Test failure.");
+				// // auto f = File(logFile, "a");
+				// stderr.writeln(r.output);
+				// stderr.writeln(getcwd);
+				// stderr.writeln(dub);
 			}
 		}
 	}
