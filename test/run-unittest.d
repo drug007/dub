@@ -10,11 +10,11 @@ import common;
 
 int main(string[] args)
 {
-	import std.algorithm : among;
+	import std.algorithm : among, filter;
 	import std.file : dirEntries, DirEntry, exists, getcwd, readText, SpanMode;
 	import std.format : format;
 	import std.stdio : File, writeln;
-	import std.path : absolutePath, buildNormalizedPath, baseName, dirName;
+	import std.path : absolutePath, buildNormalizedPath, baseName, buildPath, dirName;
 	import std.process : environment, spawnProcess, wait;
 
 	//** if [ -z ${DUB:-} ]; then
@@ -50,8 +50,8 @@ int main(string[] args)
 	const curr_dir = __FILE_FULL_PATH__.dirName();
 	const frontend = environment.get("FRONTEND", "");
 
-	//** if [ "$#" -gt 0 ]; then FILTER=$1; else FILTER=".*"; fi
-	auto filter = (args.length > 1) ? args[1] : "*";
+	// //** if [ "$#" -gt 0 ]; then FILTER=$1; else FILTER=".*"; fi
+	// auto filter = (args.length > 1) ? args[1] : "*";
 
 	version (Posix)
 	{
@@ -73,7 +73,7 @@ int main(string[] args)
 		}
 	}
 
-	foreach (DirEntry script; dirEntries(curr_dir, (args.length > 1) ? args[1] : "*.script.d", SpanMode.shallow))
+	version(none) foreach (DirEntry script; dirEntries(curr_dir, (args.length > 1) ? args[1] : "*.script.d", SpanMode.shallow))
 	{
 		const min_frontend = script.name ~ ".min_frontend";
 		if (frontend.length && exists(min_frontend) && frontend < min_frontend.readText) continue;
@@ -83,6 +83,48 @@ int main(string[] args)
 		else
 			log(script.name, " status: Ok");
 	}
+
+	void[string] building, running, testing;
+
+	// for pack in $(ls -d $CURR_DIR/*/); do
+	foreach (DirEntry pack; dirEntries(curr_dir, (args.length > 1) ? args[1] : "*", SpanMode.shallow).filter!(a => a.isDir))
+	{
+		// skip directories that are not packages
+		if (!buildPath(pack.name, "dub.sdl").exists && !buildPath(pack.name, "dub.json").exists) continue;
+		const min_frontend = buildPath(pack.name, ".min_frontend");
+		if (frontend.length && exists(min_frontend) && frontend < min_frontend.readText) continue;
+
+		// # First we build the packages
+		// if [ ! -e $pack/.no_build ] && [ ! -e $pack/.no_build_$DC_BIN ]; then # For sourceLibrary
+		// 	build=1
+		// 	if [ -e $pack/.fail_build ]; then
+		// 		log "Building $pack, expected failure..."
+		// 		# $DUB build --force --root=$pack --compiler=$DC 2>/dev/null && logError "Error: Failure expected, but build passed."
+		// 	else
+		// 		log "Building $pack..."
+		// 		# $DUB build --force --root=$pack --compiler=$DC || logError "Build failure."
+		// 	fi
+		// else
+		// 	build=0
+		// fi
+
+		// # We run the ones that are supposed to be run
+		// if [ $build -eq 1 ] && [ ! -e $pack/.no_run ] && [ ! -e $pack/.no_run_$DC_BIN ]; then
+		// 	log "Running $pack..."
+		// 	# $DUB run --force --root=$pack --compiler=$DC || logError "Run failure."
+		// fi
+
+		// # Finally, the unittest part
+		// if [ $build -eq 1 ] && [ ! -e $pack/.no_test ] && [ ! -e $pack/.no_test_$DC_BIN ]; then
+		// 	log "Testing $pack..."
+		// 	# $DUB test --force --root=$pack --compiler=$DC || logError "Test failure."
+		// fi
+	// done
+	}
+
+	// echo
+	// echo 'Testing summary:'
+	// cat $(dirname "${BASH_SOURCE[0]}")/test.log
 
 	return any_errors;
 }
