@@ -71,8 +71,9 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: test run logs
-        path: test2.log
-        path: test/test.log
+        path: |
+          test2.log
+          test/test.log
 
     - name: '[Windows] Test'
       if: runner.os == 'Windows'
