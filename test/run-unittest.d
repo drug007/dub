@@ -13,7 +13,7 @@ int main(string[] args)
 	import std.algorithm : among, filter;
 	import std.file : dirEntries, DirEntry, exists, getcwd, readText, SpanMode;
 	import std.format : format;
-	import std.stdio : File, writeln;
+	import std.stdio : File, writeln, stdin, stdout;
 	import std.path : absolutePath, buildNormalizedPath, baseName, buildPath, dirName;
 	import std.process : environment, spawnProcess, wait;
 
@@ -84,47 +84,71 @@ int main(string[] args)
 			log(script.name, " status: Ok");
 	}
 
-	void[string] building, running, testing;
+	// void[string] building, running, testing;
 
 	// for pack in $(ls -d $CURR_DIR/*/); do
 	foreach (DirEntry pack; dirEntries(curr_dir, (args.length > 1) ? args[1] : "*", SpanMode.shallow).filter!(a => a.isDir))
 	{
 		// skip directories that are not packages
-		if (!buildPath(pack.name, "dub.sdl").exists && !buildPath(pack.name, "dub.json").exists) continue;
+		if (!buildPath(pack.name, "dub.sdl").exists && 
+			!buildPath(pack.name, "dub.json").exists &&
+			!buildPath(pack.name, "package.json").exists)
+			continue;
+
+		// skip packages that demands more recent frontend than the available one
 		const min_frontend = buildPath(pack.name, ".min_frontend");
 		if (frontend.length && exists(min_frontend) && frontend < min_frontend.readText) continue;
 
-		// # First we build the packages
-		// if [ ! -e $pack/.no_build ] && [ ! -e $pack/.no_build_$DC_BIN ]; then # For sourceLibrary
-		// 	build=1
-		// 	if [ -e $pack/.fail_build ]; then
-		// 		log "Building $pack, expected failure..."
-		// 		# $DUB build --force --root=$pack --compiler=$DC 2>/dev/null && logError "Error: Failure expected, but build passed."
-		// 	else
-		// 		log "Building $pack..."
-		// 		# $DUB build --force --root=$pack --compiler=$DC || logError "Build failure."
-		// 	fi
-		// else
-		// 	build=0
-		// fi
+		// First we build the packages
+		bool build;
+		if (!buildPath(pack.name, ".no_build").exists && !buildPath(pack.name, ".no_build_" ~ dc_bin).exists)
+		{
+			auto logFile = File("log.log", "w");
+			if (buildPath(pack.name, ".fail_build").exists)
+			{
+				log("Building ", pack.name, " expected failure...");
+				// $DUB build --force --root=$pack --compiler=$DC 2>/dev/null && logError "Error: Failure expected, but build passed."
+				if (!spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
+					logError("Error: Failure expected, but build passed.");
+			}
+			else
+			{
+				log("Building ", pack.name, "...");
+				// $DUB build --force --root=$pack --compiler=$DC || logError "Build failure."
+				if (spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
+					logError("Build failure");
+				else
+					build = true;
+			}
+		}
 
-		// # We run the ones that are supposed to be run
+		// We run the ones that are supposed to be run
 		// if [ $build -eq 1 ] && [ ! -e $pack/.no_run ] && [ ! -e $pack/.no_run_$DC_BIN ]; then
-		// 	log "Running $pack..."
+		if (build && !buildPath(pack.name, ".no_run").exists && !buildPath(pack.name, ".no_run_" ~ dc_bin).exists)
+		{
+			log("Running ", pack.name, "...");
 		// 	# $DUB run --force --root=$pack --compiler=$DC || logError "Run failure."
-		// fi
+			if (spawnProcess([dub, "run", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc]).wait)
+				logError("Run failure");
+		}
 
-		// # Finally, the unittest part
+		// Finally, the unittest part
 		// if [ $build -eq 1 ] && [ ! -e $pack/.no_test ] && [ ! -e $pack/.no_test_$DC_BIN ]; then
-		// 	log "Testing $pack..."
+		if (build && !buildPath(pack.name, ".no_test").exists && !buildPath(pack.name, ".no_test_" ~ dc_bin).exists)
+		{
+			log("Testing ", pack.name, "...");
 		// 	# $DUB test --force --root=$pack --compiler=$DC || logError "Test failure."
-		// fi
-	// done
+			if (spawnProcess([dub, "test", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc]).wait)
+				logError("Test failure");
+		}
 	}
 
 	// echo
 	// echo 'Testing summary:'
 	// cat $(dirname "${BASH_SOURCE[0]}")/test.log
+	import std.stdio;
+	writeln("\nTesting summary:");
+	logFile.readText.writeln;
 
 	return any_errors;
 }

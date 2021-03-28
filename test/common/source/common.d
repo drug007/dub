@@ -4,7 +4,7 @@ import std.conv : text;
 import std.stdio : File, stdout, stderr;
 
 /// Name of the log file
-enum logFile = "test.log";
+enum logFile = "test2.log";
 
 /// has true if some test fails
 bool any_errors = false;
