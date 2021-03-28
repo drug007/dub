@@ -147,7 +147,7 @@ int main(string[] args)
 	// echo 'Testing summary:'
 	// cat $(dirname "${BASH_SOURCE[0]}")/test.log
 	import std.stdio;
-	writeln("\nTesting summary:");
+	writeln("\nTesting summary2:");
 	logFile.readText.writeln;
 
 	return any_errors;
