@@ -39,7 +39,7 @@ FRONTEND="${FRONTEND:-}"
 
 if [ "$#" -gt 0 ]; then FILTER=$1; else FILTER=".*"; fi
 
-for pack in $(ls -d $CURR_DIR/*/); do
+for pack in $(ls -d $CURR_DIR/*); do
     if [[ ! "$pack" =~ $FILTER ]]; then continue; fi
     if [ -e $pack/.min_frontend ] && [ ! -z "$FRONTEND" -a "$FRONTEND" \< $(cat $pack/.min_frontend) ]; then continue; fi
 

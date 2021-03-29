@@ -106,7 +106,7 @@ int main(string[] args)
 			auto logFile = File("log.log", "w");
 			if (buildPath(pack.name, ".fail_build").exists)
 			{
-				log("Building ", pack.name, " expected failure...");
+				log("Building ", pack.name, ", expected failure...");
 				// $DUB build --force --root=$pack --compiler=$DC 2>/dev/null && logError "Error: Failure expected, but build passed."
 				if (!spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
 					logError("Error: Failure expected, but build passed.");
