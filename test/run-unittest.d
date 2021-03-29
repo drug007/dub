@@ -103,6 +103,7 @@ int main(string[] args)
 		bool build;
 		if (!buildPath(pack.name, ".no_build").exists && !buildPath(pack.name, ".no_build_" ~ dc_bin).exists)
 		{
+			build = true;
 			auto logFile = File("log.log", "w"); // dummy
 			if (buildPath(pack.name, ".fail_build").exists)
 			{
@@ -117,8 +118,6 @@ int main(string[] args)
 				// $DUB build --force --root=$pack --compiler=$DC || logError "Build failure."
 				if (spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
 					logError("Build failure");
-				else
-					build = true;
 			}
 		}
 
