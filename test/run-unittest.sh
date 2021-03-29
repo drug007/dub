@@ -7,7 +7,7 @@ set -ueo pipefail
 
 function log() {
     echo -e "\033[0;33m[INFO] $@\033[0m"
-    echo "[INFO]  $@" >> $(dirname "${BASH_SOURCE[0]}")/test.log
+    echo "[INFO] $@" >> $(dirname "${BASH_SOURCE[0]}")/test.log
 }
 
 function logError() {
