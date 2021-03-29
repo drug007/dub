@@ -103,7 +103,7 @@ int main(string[] args)
 		bool build;
 		if (!buildPath(pack.name, ".no_build").exists && !buildPath(pack.name, ".no_build_" ~ dc_bin).exists)
 		{
-			auto logFile = File("log.log", "w");
+			auto logFile = File("log.log", "w"); // dummy
 			if (buildPath(pack.name, ".fail_build").exists)
 			{
 				log("Building ", pack.name, ", expected failure...");
