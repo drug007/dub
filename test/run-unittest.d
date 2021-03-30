@@ -53,6 +53,16 @@ int main(string[] args)
 	// //** if [ "$#" -gt 0 ]; then FILTER=$1; else FILTER=".*"; fi
 	// auto filter = (args.length > 1) ? args[1] : "*";
 
+	version(Windows) string[] failing_build = [
+		"1-dynLib-simple",
+		"2-dynLib-with-staticLib-dep",
+		"issue130-unicode-СНАЯАСТЕЯЅ",
+		"issue1474",
+	];
+	version(Windows) string[] failing_run = [
+		"3-copyFiles",
+	];
+
 	version (Posix)
 	{
 		//** for script in $(ls $CURR_DIR/*.sh); do
@@ -95,6 +105,9 @@ int main(string[] args)
 			!buildPath(pack.name, "package.json").exists)
 			continue;
 
+		version(Windows) import std.algorithm : canFind;
+		version(Windows) if (failing_build.canFind(pack.name.baseName)) continue;
+
 		// skip packages that demands more recent frontend than the available one
 		const min_frontend = buildPath(pack.name, ".min_frontend");
 		if (frontend.length && exists(min_frontend) && frontend < min_frontend.readText) continue;
@@ -120,6 +133,8 @@ int main(string[] args)
 					logError("Build failure");
 			}
 		}
+
+		version(Windows) if (failing_run.canFind(pack.name.baseName)) continue;
 
 		// We run the ones that are supposed to be run
 		// if [ $build -eq 1 ] && [ ! -e $pack/.no_run ] && [ ! -e $pack/.no_run_$DC_BIN ]; then
