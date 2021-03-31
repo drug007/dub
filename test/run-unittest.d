@@ -58,6 +58,8 @@ int main(string[] args)
 		"2-dynLib-with-staticLib-dep",
 		"issue130-unicode-СНАЯАСТЕЯЅ",
 		"issue1474",
+		"git-dependency",
+		"issue502-root-import",
 	];
 	version(Windows) string[] failing_run = [
 		"3-copyFiles",
