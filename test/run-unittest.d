@@ -124,14 +124,14 @@ int main(string[] args)
 			auto logFile = File("log.log", "w"); // dummy
 			if (buildPath(pack.name, ".fail_build").exists)
 			{
-				log("Building ", pack.name.baseName, "/, expected failure...");
+				log("Building ", pack.name.baseName, ", expected failure...");
 				// // $DUB build --force --root=$pack --compiler=$DC 2>/dev/null && logError "Error: Failure expected, but build passed."
 				// if (!spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
 				// 	logError("Error: Failure expected, but build passed.");
 			}
 			else
 			{
-				log("Building ", pack.name.baseName, "/...");
+				log("Building ", pack.name.baseName, "...");
 				// // $DUB build --force --root=$pack --compiler=$DC || logError "Build failure."
 				// if (spawnProcess([dub, "build", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc], stdin, logFile).wait)
 				// 	logError("Build failure");
@@ -144,7 +144,7 @@ int main(string[] args)
 		// if [ $build -eq 1 ] && [ ! -e $pack/.no_run ] && [ ! -e $pack/.no_run_$DC_BIN ]; then
 		if (build && !buildPath(pack.name, ".no_run").exists && !buildPath(pack.name, ".no_run_" ~ dc_bin).exists)
 		{
-			log("Running ", pack.name.baseName, "/...");
+			log("Running ", pack.name.baseName, "...");
 		// // 	# $DUB run --force --root=$pack --compiler=$DC || logError "Run failure."
 		// 	if (spawnProcess([dub, "run", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc]).wait)
 		// 		logError("Run failure");
@@ -154,7 +154,7 @@ int main(string[] args)
 		// if [ $build -eq 1 ] && [ ! -e $pack/.no_test ] && [ ! -e $pack/.no_test_$DC_BIN ]; then
 		if (build && !buildPath(pack.name, ".no_test").exists && !buildPath(pack.name, ".no_test_" ~ dc_bin).exists)
 		{
-			log("Testing ", pack.name.baseName, "/...");
+			log("Testing ", pack.name.baseName, "...");
 		// // 	# $DUB test --force --root=$pack --compiler=$DC || logError "Test failure."
 		// 	if (spawnProcess([dub, "test", "--force", "--root=" ~ pack.name, "--compiler=" ~ dc]).wait)
 		// 		logError("Test failure");
