@@ -31,7 +31,7 @@ jobs:
         # os: [ macOS-10.15, ubuntu-18.04, windows-2019 ]
         # dc: [ dmd-latest, ldc-latest, dmd-master, ldc-master ]
         os: [ ubuntu-18.04, windows-2019 ]
-        dc: [ dmd-latest, ldc-latest ]
+        dc: [ dmd-latest ]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -101,14 +101,14 @@ jobs:
 
   diffing:
     name: diffing
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2019
     needs: main
     steps:
     - name: Prepare to making windows diff
       if: runner.os == 'Windows'
       uses: actions/download-artifact@v2
       with:
-        name: test run logs ubuntu-18.04 ${{ matrix.dc }}
+        name: test run logs ubuntu-18.04 dmd-latest
         # path: path/to/artifact
 
     - name: Making windows diff
