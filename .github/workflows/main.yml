@@ -95,6 +95,7 @@ jobs:
         path: test/test2.log
 
     - name: Making linux diff
+      if: runner.os != 'Windows'
       run: dub --single ./linux_diff.d
 
     - name: Prepare to making windows diff
