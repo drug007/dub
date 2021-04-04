@@ -83,6 +83,7 @@ jobs:
         dub --single run-unittest.d
 
     - name: Upload old linux test log
+      if: runner.os != 'Windows'
       uses: actions/upload-artifact@v2
       with:
         name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
