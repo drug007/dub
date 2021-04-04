@@ -10,9 +10,6 @@ void main()
 	auto l1 = "test/test.log".readText.lineSplitter.array.sort;
 	auto l2 = "test/test2.log".readText.lineSplitter.array.sort;
 
-	auto i = setIntersection(l1, l2);
-	i.each!writeln;
-	writeln("diff");
 	string[] d = setSymmetricDifference(l1, l2).array;
 	d.each!writeln;
 	version(Posix) assert(d.equal([
