@@ -27,9 +27,11 @@ jobs:
       # Default, disable if you want to debug
       fail-fast: false
       matrix:
-        # Latest stable version, update at will
-        os: [ macOS-10.15, ubuntu-18.04, windows-2019 ]
-        dc: [ dmd-latest, ldc-latest, dmd-master, ldc-master ]
+        # # Latest stable version, update at will
+        # os: [ macOS-10.15, ubuntu-18.04, windows-2019 ]
+        # dc: [ dmd-latest, ldc-latest, dmd-master, ldc-master ]
+        os: [ windows-2019 ]
+        dc: [ dmd-latest ]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -79,6 +81,7 @@ jobs:
         dub run   --compiler=${{ env.DC }} --single test\issue2051_running_unittests_from_dub_single_file_packages_fails.d
         cd test
         dub --single run-unittest.d
+        dir
 
     - name: test.log
       uses: actions/upload-artifact@v2
@@ -89,4 +92,7 @@ jobs:
           test/test.log
 
     - name: Making diff
-      run: dub --single ./diff.d
+      run: |
+        dir
+        dir test
+        dub --single ./diff.d
