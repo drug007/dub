@@ -50,6 +50,8 @@ int main(string[] args)
 	const curr_dir = __FILE_FULL_PATH__.dirName();
 	const frontend = environment.get("FRONTEND", "");
 
+	chdir(curr_dir);
+
 	// //** if [ "$#" -gt 0 ]; then FILTER=$1; else FILTER=".*"; fi
 	// auto filter = (args.length > 1) ? args[1] : "*";
 

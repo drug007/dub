@@ -71,7 +71,7 @@ jobs:
       with:
         name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
         path: |
-          test2.log
+          test/test2.log
           test/test.log
 
     - name: '[Windows] Test'
