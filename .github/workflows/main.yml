@@ -97,10 +97,13 @@ jobs:
     - name: Making linux diff
       run: dub --single ./linux_diff.d
 
-    - name: Making windows diff
+    - name: Prepare to making windows diff
       if: runner.os == 'Windows'
       uses: actions/download-artifact@v2
       with:
         name: test run logs ubuntu-18.04 ${{ matrix.dc }}
         # path: path/to/artifact
+
+    - name: Making windows diff
+      if: runner.os == 'Windows'
       run: dir #dub --single ./windows_diff.d
