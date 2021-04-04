@@ -15,7 +15,7 @@ void main()
 	writeln("diff");
 	string[] d = setSymmetricDifference(l1, l2).array;
 	d.each!writeln;
-	assert(d.equal([
+	version(Posix) assert(d.equal([
 		"[ERROR] /home/runner/work/dub/dub/test/version-spec.sh:19 command failed",
 		"[ERROR] /home/runner/work/dub/dub/test/version-spec.sh:20 command failed",
 		"[ERROR] /home/runner/work/dub/dub/test/version-spec.sh:21 command failed",

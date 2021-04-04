@@ -30,8 +30,8 @@ jobs:
         # # Latest stable version, update at will
         # os: [ macOS-10.15, ubuntu-18.04, windows-2019 ]
         # dc: [ dmd-latest, ldc-latest, dmd-master, ldc-master ]
-        os: [ ubuntu-18.04 ]
-        dc: [ dmd-latest ]
+        os: [ ubuntu-18.04, windows-2019 ]
+        dc: [ dmd-latest, ldc-latest ]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -82,14 +82,25 @@ jobs:
         cd test
         dub --single run-unittest.d
 
-    - name: test.log
+    - name: Upload old linux test log
       uses: actions/upload-artifact@v2
       with:
         name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
-        path: |
-          test/test2.log
-          test/test.log
+        path: test/test.log
 
-    - name: Making diff
-      if: runner.os != 'Windows'
-      run: dub --single ./diff.d
+    - name: Upload new linux test log
+      uses: actions/upload-artifact@v2
+      with:
+        name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
+        path: test/test2.log
+
+    - name: Making linux diff
+      run: dub --single ./linux_diff.d
+
+    - name: Making windows diff
+      if: runner.os == 'Windows'
+      uses: actions/download-artifact@v2
+      with:
+        name: test run logs ubuntu-18.04 ${{ matrix.dc }}
+        # path: path/to/artifact
+      run: dir #dub --single ./windows_diff.d
