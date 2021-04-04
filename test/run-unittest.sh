@@ -3,16 +3,18 @@ set -ueo pipefail
 
 . $(dirname "${BASH_SOURCE[0]}")/common.sh
 
-> $(dirname "${BASH_SOURCE[0]}")/test.log
+FILENAME="${LOG_FILE:-test.log}"
+
+> $(dirname "${BASH_SOURCE[0]}")/"${FILENAME}"
 
 function log() {
     echo -e "\033[0;33m[INFO] $@\033[0m"
-    echo "[INFO] $@" >> $(dirname "${BASH_SOURCE[0]}")/test.log
+    echo "[INFO] $@" >> $(dirname "${BASH_SOURCE[0]}")/"${FILENAME}"
 }
 
 function logError() {
     echo -e 1>&2 "\033[0;31m[ERROR] $@\033[0m"
-    echo "[ERROR] $@" >> $(dirname "${BASH_SOURCE[0]}")/test.log
+    echo "[ERROR] $@" >> $(dirname "${BASH_SOURCE[0]}")/"${FILENAME}"
     any_errors=1
 }
 
@@ -80,6 +82,6 @@ done
 
 echo
 echo 'Testing summary:'
-cat $(dirname "${BASH_SOURCE[0]}")/test.log
+cat $(dirname "${BASH_SOURCE[0]}")/"${FILENAME}"
 
 exit ${any_errors:-0}
