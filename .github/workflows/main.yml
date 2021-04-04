@@ -66,13 +66,6 @@ jobs:
         dub build --compiler=${{ env.DC }}
         dub run   --compiler=${{ env.DC }} --single test/issue2051_running_unittests_from_dub_single_file_packages_fails.d
         ./scripts/ci/travis.sh
-    - name: test.log
-      uses: actions/upload-artifact@v2
-      with:
-        name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
-        path: |
-          test/test2.log
-          test/test.log
 
     - name: '[Windows] Test'
       if: runner.os == 'Windows'
@@ -86,3 +79,14 @@ jobs:
         dub run   --compiler=${{ env.DC }} --single test\issue2051_running_unittests_from_dub_single_file_packages_fails.d
         cd test
         dub --single run-unittest.d
+
+    - name: test.log
+      uses: actions/upload-artifact@v2
+      with:
+        name: test run logs ${{ matrix.os }} ${{ matrix.dc }}
+        path: |
+          test/test2.log
+          test/test.log
+
+    - name: Making diff
+      run: dub --single ./diff.d

@@ -11,7 +11,7 @@ import common;
 int main(string[] args)
 {
 	import std.algorithm : among, filter;
-	import std.file : dirEntries, DirEntry, exists, getcwd, readText, SpanMode;
+	import std.file : chdir, dirEntries, DirEntry, exists, getcwd, readText, SpanMode;
 	import std.format : format;
 	import std.stdio : File, writeln, stdin, stdout;
 	import std.path : absolutePath, buildNormalizedPath, baseName, buildPath, dirName;
