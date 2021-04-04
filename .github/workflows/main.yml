@@ -99,6 +99,11 @@ jobs:
       if: runner.os != 'Windows'
       run: dub --single ./linux_diff.d
 
+  diffing:
+    name: diffing
+    runs-on: ${{ matrix.os }}
+    needs: main
+    steps:
     - name: Prepare to making windows diff
       if: runner.os == 'Windows'
       uses: actions/download-artifact@v2
