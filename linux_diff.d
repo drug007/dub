@@ -1,7 +1,7 @@
 #!/usr/bin/env dub
 /+dub.sdl:
-	name: diff
-	targetName: diff
+	name: linux-diff
+	targetName: linux-diff
 +/
 
 void main()
@@ -23,4 +23,6 @@ void main()
 		"[ERROR] /opt/hostedtoolcache/dc/dmd-2.096.0/x64/dmd2/linux/bin64/dub:20 command failed",
 		"[ERROR] /opt/hostedtoolcache/dc/dmd-2.096.0/x64/dmd2/linux/bin64/dub:21 command failed",
 	]));
+	else
+		static assert(0);
 }
